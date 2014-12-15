@@ -69,13 +69,13 @@ class helicopter_agent(Agent):
 	
 	def agent_step(self,reward, observation):
 		#Generate random action, 0 or 1
-		print "actual===reward",reward
+		#print "actual===reward",reward
 		#print "actual observation====  ",observation.doubleArray
 		#approximate value function		
 		self.lastObservation=copy.deepcopy(observation)
 		 
 		self.next_observation_list.append(observation.doubleArray)               
-		self.approximateValueFunction()		
+		self.approximateKernelFunction()		
 		#end of test
 		print reward
 		#test how reward approximation works
@@ -117,7 +117,7 @@ class helicopter_agent(Agent):
 	def agent_message(self,inMessage):
 		pass
  	
-	def approximateValueFunction(self):
+	def approximateKernelFunction(self):
 		"""
 			try to approximate value function: V(s) = A*s+B*a
 
@@ -132,8 +132,10 @@ class helicopter_agent(Agent):
 		 
 		Coff = numpy.linalg.lstsq(self.action_list,[map(sub,self.next_observation_list[i],self.last_observation_list[i]) for i in range(len(self.next_observation_list))])[0]
 		
-		self.value_function_weight = numpy.matrix.transpose(Coff)
-
+		if(not self.value_function_weight==[]):
+			self.value_function_weight = numpy.add(0.2*numpy.array(numpy.matrix.transpose(Coff)),0.8*numpy.array(self.value_function_weight))
+		else:
+			self.value_function_weight = numpy.matrix.transpose(Coff)
 		#get the error
 		total_error = 0
 		for i in range(0,len(self.action_list)):
@@ -154,11 +156,13 @@ class helicopter_agent(Agent):
 		
 		import numpy
 		import math
+
 		A = numpy.linalg.lstsq(self.observation_list,self.reward_list)[0]
 		
-		 
-		self.reward_weight = A
-		 
+		if(not self.reward_weight==[]): 
+			self.reward_weight = numpy.add(0.2*A , 0.8*self.reward_weight)
+		else:
+			self.reward_weight = A 
  		#get the error
 		total_error =0
 		for i in range(0,len(self.reward_list)):
@@ -183,16 +187,16 @@ class helicopter_agent(Agent):
 		action = []
 		action_reward = -10000 
 		while(True):
-			for i in range(0,50):
+			for i in range(0,100):
 				randAction = self.randomSmoothAction() 
 				reward  = numpy.inner(self.reward_weight,numpy.add(numpy.inner				 		(self.value_function_weight,randAction),self.lastObservation.doubleArray))
 				if(reward > action_reward):
 					action = randAction
 					action_reward = reward
+				 
 			if(action_reward > numpy.inner(self.reward_weight,self.lastObservation.doubleArray)):				
-				print "predicted reward===",action_reward 	
-				#print "predicted state====    ",numpy.add(numpy.inner				 		(self.value_function_weight,randAction),self.lastObservation.doubleArray)			
-				 				
+				#print "predicted state====    ",numpy.add(numpy.inner				 		(self.value_function_weight,randAction),self.last_observation_list[-1])		
+				  				
 				return action
 			 
 						
