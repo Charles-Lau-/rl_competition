@@ -23,7 +23,7 @@ class helicopter_agent(Agent):
 	lastObservation= None
 	rangeAction = None
 	rangeObservation = None
-	discountFactor = 0
+	discountFactor = 1
        
 	 
 	#Q-table : Q(S) = {"action 1":reward,"action 2":reward...}
@@ -31,7 +31,7 @@ class helicopter_agent(Agent):
 	Bad_Table = {}
  	Step_Size = {}
 	E_Trace = {}
-	lambda_ = 0.2
+	lambda_ = 1 
 	def agent_init(self,taskSpecString):
 		"""
 			obtain range of observation , range of aciont and discount factor
@@ -153,7 +153,7 @@ class helicopter_agent(Agent):
 		else:
 			Q_next_max = 0
 		
-		#update the step size
+		#update the value
 		if(self.Step_Size.has_key(obs_key)):
 			if(self.Step_Size[obs_key].has_key(act_key)):
 				self.Step_Size[obs_key][act_key] += 1
@@ -164,55 +164,27 @@ class helicopter_agent(Agent):
 
 		sigma = 1.0/self.Step_Size[obs_key][act_key]*(reward + Q_next_max - Q_s_a)
 		
-		#update trace eligibility
 		if(self.E_Trace.has_key(obs_key)):
-			self.E_Trace[obs_key][act_key] = 1
+			if(self.E_Trace[obs_key].has_key(act_key)):
+				self.E_Trace[obs_key][act_key] +=1
+			else:
+				self.E_Trace[obs_key][act_key] = 1
 		else:
 			self.E_Trace[obs_key] = {act_key:1}
-               
-		#for states in self.Q_Table.keys():
-		#	for action_ in self.Q_Table[states].keys(): 
-		#		self.Q_Table[states][action_] += self.Step_Size[states][action_]*sigma*self.E_Trace[states][action_]	
-		# 		self.E_Trace[states][action_] *= self.lambda_
- 		#	if(self.Q_Table[states]=={}):
-		#		self.Q_Table[states][act_key] = self.Step_Size[states][act_key]*sigma*self.E_Trace[states][act_key]
-		#		self.E_Trace[states][act_key] *= self.lambda_
-		
-		#or
-		
-		if(self.E_Trace.has_key(obs_key)):
-			self.E_Trace[obs_key][act_key] =1
-			 
-		else:
-		 	self.E_Trace[obs_key] = {act_key:1}
+
 		for states in self.Q_Table.keys():
-		 	if(states == obs_key):
-		 		for action_ in self.Q_Table[states].keys():
-		 			self.Q_Table[states][action_] += self.Step_Size[states][action_]*sigma*self.E_Trace[states][action_]	 
-		 			if(action_==act_key):
-		 				self.E_Trace[states][action_] *= self.lambda_
-		 			else:
-		 				self.E_Trace[states][action_] = 0
-		 	else:
-		 		for action_ in self.Q_Table[states].keys():
-		 			self.Q_Table[states][action_] += self.Step_Size[states][action_]*sigma*self.E_Trace[states][action_]	 
-		 			self.E_Trace[states][action_] *= self.lambda_
- 		 	if(self.Q_Table[states]=={}):
-		 		self.Q_Table[states][act_key] = self.Step_Size[states][act_key]*sigma*self.E_Trace[states][act_key]
-		 		self.E_Trace[states][act_key] *= self.lambda_
+			for action_ in self.Q_Table[states].keys():
+				self.Q_Table[states][action_] += self.Step_Size[states][action_]*sigma*self.E_Trace[states][action_]	
+		 		self.E_Trace[states][action_] *= self.lambda_
+ 			if(self.Q_Table[states]=={}):
+				self.Q_Table[states][act_key] = self.Step_Size[states][act_key]*sigma*self.E_Trace[states][act_key]
+				self.E_Trace[states][act_key] *= self.lambda_
 		
 		#generate new action 
-
 		if(self.Q_Table.has_key(next_key)):
-			if(self.randGenerator.uniform(0,1) > 0.3 or len(self.Q_Table[next_key].values())>5):
+			if(self.randGenerator.uniform(0,1) > 0.3 ):
 				cand_actions = self.Q_Table[next_key] 
-				best_action = max(cand_actions,key =  cand_actions.get)				
-				if(cand_actions[best_action] < -15):
-					cand_actions.pop(best_action)
-					self.Q_Table[next_key] = cand_actions					
-					return util.randomGaussianAction(self.lastAction.doubleArray) 	
-				else:
-					return [float(i[1:]) for i in best_action.split("]")[0].split(",")]
+				return [float(i[1:]) for i in max(cand_actions,key =  cand_actions.get).split("]")[0].split(",")]			
 			else:
 				return util.randomGaussianAction(self.lastAction.doubleArray)	 	 				
 		else:
@@ -223,18 +195,15 @@ class helicopter_agent(Agent):
 
 	def agent_action_start(self,observation):
 		observation = [i for i in observation]
-		if(not self.Q_Table.has_key(str(observation))):
-			self.Q_Table[str([0.0]*12)] = {str([0.0]*4):0}	
-	
 		actions = self.Q_Table[str(observation)]
-		
 		desired_action = None
+
 		related_reward = -1000				
 		if(self.randGenerator.uniform(0,1)> 0.3):
 			desired_action = max(actions,key=actions.get) 	
 			return [float(i[1:]) for i in copy.copy(desired_action).split("]")[0].split(",")]
 		else:
-			return util.randomGaussianAction([0.0]*4)	
+			return util.randomGaussianAction([0.0,0.0,0.0,0.0])	
 						 		
 	#two function used to discretize search space			
   	def discretize_action(self,action):
