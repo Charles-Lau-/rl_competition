@@ -7,18 +7,21 @@ from rlglue.types import Observation
 from rlglue.utils import TaskSpecVRLGLUE3
 from random import Random
 import numpy
-import util #module written by myself,used for randomAction generation
 
+#module written by myself,used for randomAction generation
+import util 
  
 """
-	step_size need to be reconsidered
-	how to generate random action it need to be considered thoroughly
-	how to set epsilon
+Tricks can be done for performance improvement:
 
-	how to avoid bad action and bad state
+	Generate random action more smart
+	set learning rate epsilon in a considerable way
+	to avoid bad action and bad state
 
 	these three factors will affect the convergence and performance
+
 """
+
 class helicopter_agent(Agent):
 	randGenerator=Random()
 	lastAction= None
@@ -32,6 +35,8 @@ class helicopter_agent(Agent):
 	Q_Table = {}
 	Bad_Table = {}
  	Step_Size = {}
+	#learning rate
+	Epsilon = 0.2 
 
 	def agent_init(self,taskSpecString):
 		"""
@@ -50,7 +55,8 @@ class helicopter_agent(Agent):
 		self.Q_Table = {str([0.0]*12):{str([0.0]*4):0}}	 
 		
 	def agent_start(self,observation):
-		 
+		
+		self.Episode_Counter +=1
 
 		self.lastAction = None
 		self.lastObservation = None
@@ -67,19 +73,23 @@ class helicopter_agent(Agent):
 		self.lastObservation=copy.deepcopy(observation)
 		 
 		return returnAction
+
+	def isInBlackList(self,observation,action):
+		"""
+			check whether generated (ob,a) is in the black list , if so re-generate this pair
+
+		"""		
+		if(self.Bad_Table.has_key(observation) and self.BadTable[observation].has_key(action)):
+			return True
 	
 	def agent_step(self,reward, observation):
 		
 		 		
 		
 		print reward 
-		thisDoubleAction=self.agent_action_step(reward,observation.doubleArray)  
-		while(self.Bad_Table.has_key(str([i for i in self.lastObservation.doubleArray]))):
-			if(self.lastAction.doubleArray in self.Bad_Table[str([i for i in self.lastObservation.doubleArray])]) :
-				 thisDoubleAction=self.agent_action_step(reward,observation.doubleArray) 
-			else:
-				break
 
+		thisDoubleAction=self.agent_action_step(reward,observation.doubleArray)  
+				 
 		returnAction=Action()
 		returnAction.doubleArray = thisDoubleAction
 		 
@@ -94,19 +104,26 @@ class helicopter_agent(Agent):
 	
 	def agent_end(self,reward): 
 		"""
-			remove last observation from the table
+			update on termination state  
 
 		"""	
-		key  = self.discretize_observation(self.lastObservation.doubleArray)
-		self.Q_Table.pop(str(key))		
-		
-		obs_key  = str([i for i in self.lastObservation.doubleArray])
-		if(self.Bad_Table.has_key(obs_key)):
-			self.Bad_Table[obs_key].append(self.lastAction.doubleArray)
+		observation_key  = convertListToString(self.discretize_observation(self.lastObservation.doubleArray))
+		action = self.discretize_action(self.lastAction.doubleArray)		
+		action_key = convertListToString(action)
+				
+		#update Q_Table
+		self.Q_Table[observation_key][action_key] = reward
 
-		else:
-			self.Bad_Table[obs_key] = [self.lastAction.doubleArray]
+		#update Bad_Table	
+		self.Bad_Table.has_key(observation_key) and \
+			self.Bad_Table[observation_key].append(action) or \
+				self.Bad_Table.setdefault(observation_key,[action])
+
 	def agent_cleanup(self):
+		"""
+			persist data			
+
+		"""
 		t = open("data","w")
 		for key,value in self.Q_Table.items():
 			t.write(key)
@@ -127,38 +144,37 @@ class helicopter_agent(Agent):
 
 	#take action 	 
 	def agent_action_step(self,reward,observation):
+		"""
+			dealing with Td-0 procedure
+
+		"""
 		discretized_observation =  self.discretize_observation(self.lastObservation.doubleArray)
 		discretized_action  = self.discretize_action(self.lastAction.doubleArray)
 		discretized_next_observation = self.discretize_observation(observation)
 		 
-		next_key = str(discretized_next_observation)
-		obs_key = str(discretized_observation)
-		act_key = str(discretized_action)		
+		next_key = convertListToString(discretized_next_observation)
+		obs_key = convertListToString(discretized_observation)
+		act_key = convertListToString(discretized_action)		
+		
 		#get Q-value of last state and last action	
 		actions = self.Q_Table[obs_key]
-		if(actions.has_key(act_key)):
-			Q_s_a = actions[act_key]		
-		else:
-			Q_s_a = 0 
+		Q_s_a   = actions.has_key(act_key) and \
+			   actions[act_key] or \
+		   	   self.Q_Table[obs_key].setdefault(act_key,0) 
 	 
 		#get max Q-value of next state
 		if(self.Q_Table.has_key(next_key)):
-			if(self.Q_Table[next_key]=={}):
-				Q_next_max = 0
- 			else:
-				cand_actions = self.Q_Table[next_key]			 
-				action_with_max_value = max(cand_actions,key = cand_actions.get)
-				Q_next_max = cand_actions[action_with_max_value]
+			cand_actions = self.Q_Table[next_key]			 
+			action_with_max_value = max(cand_actions,key = cand_actions.get)
+			Q_next_max = cand_actions[action_with_max_value]
 								
 		else:
-			Q_next_max = 0
-		
-		#update the value
-		if(self.Step_Size.has_key(obs_key)):
-			if(self.Step_Size[obs_key].has_key(act_key)):
-				self.Step_Size[obs_key][act_key] += 1
-			else:
-				self.Step_Size[obs_key][act_key] = 1
+			Q_next_max = 0 
+		#update step_size
+		if(self.Step_Size.has_key(obs_key) ):
+			self.Step_Size[obs_key].has_key(act_key) and \
+				self.Step_Size[obs_key].setdefault(act_key,self.Step_Size[obs_key][act_key]+1) or \
+					self.Step_Size[obs_key].setdefault(act_key,1) 
  		else:
 			self.Step_Size[obs_key] = {act_key:1}
 
@@ -166,10 +182,12 @@ class helicopter_agent(Agent):
 		self.Q_Table[obs_key][act_key] = Q_s_a 
 		 
 		#generate new action 
+		#with probability epsilon generate random action , with 1-epsilon generate greedy action
 		if(self.Q_Table.has_key(next_key)):
-			if(self.randGenerator.uniform(0,1) > 0.3):
-				cand_actions = self.Q_Table[next_key] 
-				return [float(i[1:]) for i in max(cand_actions,key =  cand_actions.get).split("]")[0].split(",")]			
+			if(self.randGenerator.uniform(0,1) > self.Epsilon):
+				cand_actions = self.Q_Table[next_key] 		
+				return convertStringToList(max(cand_actions,key =  cand_actions.get))
+
 			else:
 				return util.randomGaussianAction(self.lastAction.doubleArray)	 	 				
 		else:
@@ -177,14 +195,18 @@ class helicopter_agent(Agent):
 			return util.randomGaussianAction(self.lastAction.doubleArray)		
 		 
 	def agent_action_start(self,observation):
-		observation = [i for i in observation]
-		actions = self.Q_Table[str(observation)]
+		"""
+			first step in episode
+	
+		"""
+		actions = self.Q_Table[convertListToString(observation)]
 		desired_action = None
-
-		related_reward = -1000				
-		if(self.randGenerator.uniform(0,1)> 0.3):
+		related_reward = -1000			
+		#generate new action 
+		#with probability epsilon generate random action , with 1-epsilon generate greedy action	
+		if(self.randGenerator.uniform(0,1)> self.Epsilon):
 			desired_action = max(actions,key=actions.get) 	
-			return [float(i[1:]) for i in copy.copy(desired_action).split("]")[0].split(",")]
+			return convertStringToList(desired_action)
 		else:
 			return util.randomGaussianAction([0.0,0.0,0.0,0.0])	
 						 		
@@ -222,5 +244,18 @@ class helicopter_agent(Agent):
 				result.append(p) 
 		return result
 
+def convertListToString(targetList):
+	"""
+		convert [1,2,3,4] to "[1,2,3,4]"
+
+	"""	
+	return str([i for i in targetList])
+
+def convertStringToList(targetString):
+	"""
+		convert "[1,2,3,4]" to [1,2,3,4]
+
+	"""
+	return [float(i[1:]) for i in targetString.split("]")[0].split(",")]
 if __name__=="__main__":
 	AgentLoader.loadAgent(helicopter_agent())
