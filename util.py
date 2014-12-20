@@ -2,6 +2,23 @@ import math
 import numpy 
 import random
 
+
+
+def randomSigmoidEpsilon(reward,a,b):
+		"""
+			epsilon =  lambda r,a,b: 1.0/(1+math.exp(a*(r+b))) 
+
+		"""
+
+		return 1.0/(1+math.exp(a*(reward+b)))
+
+def randomExponenEpsilon(reward,a):
+		"""
+			exponen_fun = lambda r,a: a*math.exp(-r*math.log(1.0/a)/100.0)
+		"""
+		
+		return a*math.exp(-r*math.log(1.0/a/100.0))
+
 def randomGaussianAction(lastAction):
 		"""
 			use gaussian distribution to generate random action smoothly.--- test purpose
@@ -53,3 +70,6 @@ def randomAction():
 			action.append(random.uniform(-1,1))
 
 		return action
+
+
+

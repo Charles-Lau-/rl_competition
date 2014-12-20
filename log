@@ -2,3 +2,7 @@
 
 
 2.go_back.py added and it really fails , no use
+
+3. Discretized Version: Sarsa, Q learning, Sarsa Lambda, Watkins. They perform almost the same, around 15 steps
+
+4. Sarsa with controllability is waited to be implemented... 
