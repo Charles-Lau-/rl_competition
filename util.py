@@ -34,7 +34,7 @@ def randomGaussianAction(lastAction):
 		
 		#the cov should be tuned
 		for i in range(0,4):
-			cov[i][i] = 0.003
+			cov[i][i] = 0.002
   		
 		action = numpy.random.multivariate_normal(mean,cov)  
 		return action
