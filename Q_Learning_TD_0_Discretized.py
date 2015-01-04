@@ -8,7 +8,7 @@ from rlglue.utils import TaskSpecVRLGLUE3
 from random import Random
 import numpy
 
-#module written by myself,used for randomAction generation
+#module written by myself,used for randomAction generation and action generation based on baseline policy
 import util 
  
 """
@@ -24,6 +24,9 @@ From Observation:
 	We could know the reason that it does not run for a long time is that it fall into a local minimum
 	There is a local deep hole into which is easy  fall   
 """
+
+Training_Runs =50
+Test_Runs = 10
 
 class helicopter_agent(Agent):
 	randGenerator=Random()
@@ -41,11 +44,12 @@ class helicopter_agent(Agent):
  	Step_Size = {}
 	#learning rate 
 	Episode_Counter = 0 
-	Epsilon = 0.2
+	Epsilon = 0.3
 
 	#balance performace
 	Steps = 0
 	Overall_Steps = 0
+	Rewards = 0
 	def agent_init(self,taskSpecString):
 		"""
 			obtain range of observation , range of aciont and discount factor
@@ -71,7 +75,11 @@ class helicopter_agent(Agent):
 
 		self.Steps = 1 
 		print " " 
-		thisDoubleAction=self.agent_action_start(observation.doubleArray)
+		
+		if(self.Episode_Counter==1):
+			thisDoubleAction = util.baselinePolicy(observation.doubleArray)				
+		else:
+			thisDoubleAction=self.agent_action_start(observation.doubleArray)
 	 
 
 		returnAction=Action()
@@ -125,18 +133,17 @@ class helicopter_agent(Agent):
 		
 		import math
 	
-		 
+		self.Rewards += reward 
+
 		# function sigmoid
-		if(self.Episode_Counter>10000):
+		if(self.Episode_Counter>Training_Runs):
 			self.Epsilon = 0		
-		else:
-			self.Epsilon =   util.randomSigmoidEpsilon(reward,0.02,50)
+	 
  		
 		self.Steps +=1
 		
-
-		print reward 
-
+ 
+		
 		thisDoubleAction=self.agent_action_step(reward,observation.doubleArray)  
 				 
 		returnAction=Action()
@@ -170,8 +177,12 @@ class helicopter_agent(Agent):
 
 
 		#meansurement of performance
-		if(self.Episode_Counter>10000):
+		if(self.Episode_Counter>Training_Runs):
 			self.Overall_Steps += self.Steps
+
+		print (self.Rewards)/self.Steps
+
+		self.Rewards = 0
 
 	def agent_cleanup(self):
 		"""
@@ -194,7 +205,7 @@ class helicopter_agent(Agent):
 		t.close() 
 		
 		#measurement of performance
-		print(self.Overall_Steps/1000.0)
+		print(self.Overall_Steps/Test_Runs)
 
 	def agent_message(self,inMessage):
 		pass
@@ -205,9 +216,10 @@ class helicopter_agent(Agent):
 
 		"""
 		if(self.Step_Size.has_key(obs_key) ):
-			self.Step_Size[obs_key].has_key(act_key) and \
-				self.Step_Size[obs_key].setdefault(act_key,self.Step_Size[obs_key][act_key]+1) or \
-					self.Step_Size[obs_key].setdefault(act_key,1) 
+			if(self.Step_Size[obs_key].has_key(act_key)):
+				self.Step_Size[obs_key][act_key] += 1
+			else:
+				self.Step_Size[obs_key][act_key] = 1 
  		else:
 			self.Step_Size[obs_key] = {act_key:1}
 
@@ -228,7 +240,7 @@ class helicopter_agent(Agent):
 		"""
 			dealing with Td-0 procedure
 
-		"""
+		""" 
 		discretized_observation =  self.discretize_observation(self.lastObservation.doubleArray)
 		discretized_action  = self.discretize_action(self.lastAction.doubleArray)
 		discretized_next_observation = self.discretize_observation(observation)
@@ -256,6 +268,11 @@ class helicopter_agent(Agent):
 		 
 		#generate new action 
 		#with probability epsilon generate random action , with 1-epsilon generate greedy action
+		if(self.Episode_Counter==1 or self.isDangerous(observation)): 
+			if(not self.Q_Table.has_key(next_key)):
+				self.Q_Table[next_key] = {}
+			return util.baselinePolicy(observation)
+
 		if(self.Q_Table.has_key(next_key)):
 			if(self.randGenerator.random() > self.Epsilon):
 				cand_actions = self.Q_Table[next_key]
@@ -263,13 +280,16 @@ class helicopter_agent(Agent):
 				 
 				return target
 			else:
-				target = util.randomGaussianAction(self.lastAction.doubleArray)
+				baselineAction = util.baselinePolicy(observation)
+				target = util.randomGaussianAction(baselineAction)
 				
 				return target	
 		else:
 			self.Q_Table[next_key] = {}
-			return util.randomGaussianAction(self.lastAction.doubleArray)		
-		 
+			baselineAction = util.baselinePolicy(observation)
+			target = util.randomGaussianAction(baselineAction)		
+			return target		 
+
 	def agent_action_start(self,observation):
 		"""
 			first step in episode
@@ -284,8 +304,23 @@ class helicopter_agent(Agent):
 			desired_action = max(actions,key=actions.get) 	
 			return convertStringToList(desired_action)
 		else:
-			return util.randomGaussianAction([0.0,0.0,0.0,0.0])	
-						 		
+			baselineAction = util.baselinePolicy(observation)
+			return util.randomGaussianAction(baselineAction)	
+		
+
+	#detect whether current state is dangerous
+	def isDangerous(self,state):
+		for i in range(0,3):
+			if(state[i]>0.5 or state[i]<-0.5):
+				return True
+
+		 
+
+		for i in range(6,9):
+			if(state[i]>0.5 or state[i]<-0.5):
+				return True		
+		 		
+		return False
 	#two function used to discretize search space			
   	def discretize_action(self,action):
 		"""

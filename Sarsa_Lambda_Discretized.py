@@ -44,7 +44,7 @@ class helicopter_agent(Agent):
 	#learning rate 
 	Episode_Counter = 0 
 	Epsilon = 0.3
-	lambda_ = 0.4
+	lambda_ = 0.8
 
 	#balance performace
 	Steps = 0
@@ -132,7 +132,7 @@ class helicopter_agent(Agent):
 	
 		 
 		# function sigmoid
-		if(self.Episode_Counter>5000):
+		if(self.Episode_Counter>10000):
 			self.Epsilon = 0		
 		 
  		
@@ -172,9 +172,10 @@ class helicopter_agent(Agent):
 			self.Bad_Table[observation_key].append(action) or \
 				self.Bad_Table.setdefault(observation_key,[action])
 
+		self.E_Trace = {}
 
 		#meansurement of performance
-		if(self.Episode_Counter>5000):
+		if(self.Episode_Counter>10000):
 			self.Overall_Steps += self.Steps
 
 	def agent_cleanup(self):
@@ -198,7 +199,7 @@ class helicopter_agent(Agent):
 		t.close() 
 		
 		#measurement of performance
-		print(self.Overall_Steps/100.0)
+		print(self.Overall_Steps/1000.0)
 
 	def agent_message(self,inMessage):
 		pass
@@ -280,10 +281,10 @@ class helicopter_agent(Agent):
 
 		#update step_size
 		self.updateStepSize(obs_key,act_key)
-	
+	 
 		#update all (s,a)
-		for state in self.Step_Size.keys():
-			for action in self.Step_Size[state].keys(): 
+		for state in self.E_Trace.keys():
+			for action in self.E_Trace[state].keys(): 
 				self.Q_Table[state][action] += 1.0/self.Step_Size[state][action]*sigma*self.E_Trace[state][action]
 				self.E_Trace[state][action] *= self.lambda_
 		 

@@ -46,6 +46,8 @@ class helicopter_agent(Agent):
 	#balance performace
 	Steps = 0
 	Overall_Steps = 0
+        Rewards = 0
+
 	def agent_init(self,taskSpecString):
 		"""
 			obtain range of observation , range of aciont and discount factor
@@ -71,7 +73,11 @@ class helicopter_agent(Agent):
 
 		self.Steps = 1 
 		print " " 
-		thisDoubleAction=self.agent_action_start(observation.doubleArray)
+
+		if(self.Episode_Counter==1):
+			thisDoubleAction = util.baselinePolicy(observation.doubleArray)				
+		else:
+			thisDoubleAction=self.agent_action_start(observation.doubleArray)
 	 
 
 		returnAction=Action()
@@ -128,13 +134,13 @@ class helicopter_agent(Agent):
 		 
 		# try to set the epsilon inverse of reward that we have got 
 		
-		if(self.Episode_Counter >10000):
+		self.Rewards += reward
+		if(self.Episode_Counter >1000):
 			self.Epsilon = 0.0
  		
 		self.Steps +=1
 		
-
-		print reward 
+ 
 
 		thisDoubleAction=self.agent_action_step(reward,observation.doubleArray)  
 				 
@@ -169,8 +175,13 @@ class helicopter_agent(Agent):
 
 
 		#meansurement of performance
-		if(self.Episode_Counter>10000):
+		if(self.Episode_Counter>1000):
 			self.Overall_Steps += self.Steps
+
+		print (self.Rewards)/self.Steps
+
+		self.Rewards = 0
+
 
 	def agent_cleanup(self):
 		"""
@@ -193,7 +204,7 @@ class helicopter_agent(Agent):
 		t.close() 
 		
 		#measurement of performance
-		print(self.Overall_Steps/1000.0)
+		print(self.Overall_Steps/100.0)
 
 	def agent_message(self,inMessage):
 		pass
@@ -205,9 +216,10 @@ class helicopter_agent(Agent):
 
 		"""
 		if(self.Step_Size.has_key(obs_key) ):
-			self.Step_Size[obs_key].has_key(act_key) and \
-				self.Step_Size[obs_key].setdefault(act_key,self.Step_Size[obs_key][act_key]+1) or \
-					self.Step_Size[obs_key].setdefault(act_key,1) 
+			if(self.Step_Size[obs_key].has_key(act_key)):
+				self.Step_Size[obs_key][act_key] += 1
+			else:
+				self.Step_Size[obs_key][act_key] = 1  
  		else:
 			self.Step_Size[obs_key] = {act_key:1}
 
@@ -237,7 +249,7 @@ class helicopter_agent(Agent):
 
 		return Q_next
 
-	#take action 	 
+ 	#take action 	 
 	def agent_action_step(self,reward,observation):
 		"""
 			dealing with Td-0 procedure
@@ -265,6 +277,11 @@ class helicopter_agent(Agent):
 		 
 		#generate new action 
 		#with probability epsilon generate random action , with 1-epsilon generate greedy action
+		if(self.Episode_Counter==1):
+			if(not self.Q_Table.has_key(next_key)):
+				self.Q_Table[next_key] = {}
+			return util.baselinePolicy(observation)
+
 		if(self.Q_Table.has_key(next_key)):
 			if(self.randGenerator.random() > self.Epsilon):
 				cand_actions = self.Q_Table[next_key]
@@ -272,12 +289,15 @@ class helicopter_agent(Agent):
 				 
 				return target
 			else:
-				target = util.randomGaussianAction(self.lastAction.doubleArray)
+				baselineAction = util.baselinePolicy(observation)
+				target = util.randomGaussianAction(baselineAction)
 				
-				return target	
+				return target
 		else:
 			self.Q_Table[next_key] = {}
-			return util.randomGaussianAction(self.lastAction.doubleArray)		
+			baselineAction = util.baselinePolicy(observation)
+			target = util.randomGaussianAction(baselineAction)		
+			return target			
 		 
 	def agent_action_start(self,observation):
 		"""
@@ -293,7 +313,9 @@ class helicopter_agent(Agent):
 			desired_action = max(actions,key=actions.get) 	
 			return convertStringToList(desired_action)
 		else:
-			return util.randomGaussianAction([0.0,0.0,0.0,0.0])	
+			
+			baselineAction = util.baselinePolicy(observation)
+			return util.randomGaussianAction(baselineAction)	
 						 		
 	#two function used to discretize search space			
   	def discretize_action(self,action):
@@ -309,6 +331,7 @@ class helicopter_agent(Agent):
 			else:
 				result.append(float("%.2f" % i))
 		return result
+
 
 	def discretize_observation(self,observation):
 		"""

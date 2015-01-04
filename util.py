@@ -34,7 +34,7 @@ def randomGaussianAction(lastAction):
 		
 		#the cov should be tuned
 		for i in range(0,4):
-			cov[i][i] = 0.005
+			cov[i][i] = 0.003
   		
 		action = numpy.random.multivariate_normal(mean,cov)  
 		return action
@@ -70,6 +70,34 @@ def randomAction():
 			action.append(random.uniform(-1,1))
 
 		return action
+
+
+
+def baselinePolicy(state):
+	"""
+		given a state, a baseline policy is used to determine the next action
+
+
+	"""
+	weights = [0.0196, 0.7475, 0.0367, 0.0185,0.7904, 0.0322, 0.1969, 0.0513, 0.1348, 0.02, 0, 0.23]
+	
+	action = [0]*4 
+	action[0] = -weights[0]*state[4]+ \
+		    -weights[2]*state[1]+ \
+		    -weights[1]*state[9]+ \
+		    weights[9]
+
+	action[1] = -weights[3]*state[3]+ \
+		    -weights[5]*state[0]+ \
+		    weights[4]*state[10]+ \
+		    weights[10]
+	action[2] = -weights[6]*state[11]
+	action[3] =  weights[7]*state[5]+ \
+		     weights[8]*state[2]+ \
+		     weights[11]
+
+	return action
+
 
 
 

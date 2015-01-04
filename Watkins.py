@@ -256,9 +256,10 @@ class helicopter_agent(Agent):
 
 		"""
 		if(self.Step_Size.has_key(obs_key) ):
-			self.Step_Size[obs_key].has_key(act_key) and \
-				self.Step_Size[obs_key].setdefault(act_key,self.Step_Size[obs_key][act_key]+1) or \
-					self.Step_Size[obs_key].setdefault(act_key,1) 
+			if(self.Step_Size[obs_key].has_key(act_key)):
+				self.Step_Size[obs_key][act_key] += 1
+			else:
+				self.Step_Size[obs_key][act_key] = 1 
  		else:
 			self.Step_Size[obs_key] = {act_key:1}
 
