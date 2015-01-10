@@ -13,7 +13,7 @@ from random import Random
 """
 
 population_size = 20
-mutation_rate = 0.4
+mutation_rate = 0.2
 
 class genome():	
 	def __init__(self,network,fittness=0):
@@ -23,7 +23,8 @@ class genome():
 	def crossover(genomeOne,genomeTwo):
 		weightsOne = genomeOne.network.params
 		weightsTwo =  genomeTwo.network.params
-		newWeights =  [ weightOne*0.8+0.2*weightsTwo[i] for i,weightOne in enumerate(weightsOne)]
+		ratio = random.random()
+		newWeights =  [ weightOne*ratio+(1-ratio)*weightsTwo[i] for i,weightOne in enumerate(weightsOne)]
 		
 		return genome(StateToActionNetwork(newWeights))
 
@@ -128,12 +129,12 @@ class helicopter_agent(Agent):
 
 		"""
 			 
-		randNumber = self.randGenerator.randint(0,population_size-1)
-		while(self.generation[randNumber].fittness !=0):
-			randNumber = self.randGenerator.randint(0,population_size-1)
+		for i,g in enumerate(self.generation):
+			if(g.fittness==0):
+				self.chosenGenomeId = i
+				return g
 		
-		self.chosenGenomeId = randNumber
-		return self.generation[randNumber]
+		
 
 	def nextGeneration(self):
 		nextGeneration = []
@@ -162,9 +163,19 @@ class helicopter_agent(Agent):
 		self.reward += reward 
 		self.generation[self.chosenGenomeId].fittness = (0-self.reward) / self.step
 		print self.reward,self.step,self.reward / self.step
-		if(self.episode_counter % 20 == 0):
-			self.generation = self.nextGeneration()
-	
+		
+		for  g in self.generation:
+			if(g.fittness == 0):
+				return
+
+		NextGeneration = self.nextGeneration()
+		generation_sorted = sorted(self.generation,key=lambda g:g.fittness)
+		for i in generation_sorted:
+			print i.fittness
+		for i in range(0,5):
+			substitution_candidate = self.randGenerator.randint(0,population_size-1) 
+			NextGeneration[substitution_candidate] = generation_sorted[i]
+		self.generation = NextGeneration
 
 	def agent_cleanup(self):
 		pass
