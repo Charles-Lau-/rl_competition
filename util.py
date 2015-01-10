@@ -39,6 +39,12 @@ def randomGaussianAction(lastAction):
 		action = numpy.random.multivariate_normal(mean,cov)  
 		return action
 
+def evolutionMutate():
+	"""
+		serve for the evolution algorithm , use 0 as mean and 0.001 as variance to generate random value
+
+	"""
+	return random.gauss(0,0.01)
 
 def randomSmoothAction(lastAction):
 		"""
