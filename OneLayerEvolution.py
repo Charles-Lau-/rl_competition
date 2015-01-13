@@ -10,10 +10,12 @@ from random import Random
     If set initial weights , neural network topology , way of crossover and mutation rate appropriately ,
   	then the performance can be improved
 
-"""
+	"""
 
 population_size = 20
-mutation_rate = 0.2
+mutation_rate = 0.7
+decay_rate = 1
+variance = 0.01
 
 class genome():	
 	def __init__(self,network,fittness=0):
@@ -23,7 +25,7 @@ class genome():
 	def crossover(genomeOne,genomeTwo):
 		weightsOne = genomeOne.network.params
 		weightsTwo =  genomeTwo.network.params
-		ratio = random.random()
+		ratio = (1.0/genomeOne.fittness)/(1.0/genomeOne.fittness+1.0/genomeTwo.fittness)
 		newWeights =  [ weightOne*ratio+(1-ratio)*weightsTwo[i] for i,weightOne in enumerate(weightsOne)]
 		
 		return genome(StateToActionNetwork(newWeights))
@@ -31,8 +33,8 @@ class genome():
 	def mutate(self):
 	 	weights = self.network.params
 		for i,w in enumerate(weights):
-			if(random.uniform(0,1)>mutation_rate):
-				weights[i] = w+util.evolutionMutate()
+			if(random.uniform(0,1)<mutation_rate):
+				weights[i] = w+evolutionMutate()
 		self.network = StateToActionNetwork(weights)
 	
  	
@@ -53,6 +55,7 @@ class helicopter_agent(Agent):
        	#for evolution
 	generation = []
 			
+	
 
 	def agent_init(self,taskSpecString):
 		"""
@@ -74,12 +77,14 @@ class helicopter_agent(Agent):
 
 	def agent_start(self,observation):
 		#Generate random action, 0 or 1  
+		global mutation_rate,variance
 		self.lastAction = None
 		self.lastObservation = None
 		self.reward = 0.0
 		self.episode_counter += 1.0
 		self.step = 1.0
- 
+		mutation_rate =  mutation_rate*decay_rate
+		variance *= decay_rate
 		self.network = self.getUnevaluatedGenome().network
 		
 		 
@@ -98,12 +103,9 @@ class helicopter_agent(Agent):
 		 		
 		self.reward += reward
 		self.step += 1
-	       
-                if(self.isRisk(observation.doubleArray)):
-			thisDoubleAction = util.baselinePolicy(observation.doubleArray)
-			
-		else:
-		 	thisDoubleAction=self.agent_step_action(observation.doubleArray)  
+	        
+
+		thisDoubleAction=self.agent_step_action(observation.doubleArray)  
 		  
 		returnAction=Action()
 		returnAction.doubleArray = thisDoubleAction
@@ -112,7 +114,7 @@ class helicopter_agent(Agent):
 		self.lastObservation=copy.deepcopy(observation)
 		self.lastAction=copy.deepcopy(returnAction)
 		
-		 
+		self.lastReward = reward 
 		return returnAction
 	
 	def agent_step_action(self,observation):			
@@ -135,7 +137,7 @@ class helicopter_agent(Agent):
 		seed = self.seed.params
 		generation = []
 		for i in range(0,population_size):
-			generation.append(genome(StateToActionNetwork([ w+util.evolutionMutate() for w in seed])))
+			generation.append(genome(StateToActionNetwork([ w+evolutionMutate() for w in seed])))
 		
 		return generation
 
@@ -179,11 +181,7 @@ class helicopter_agent(Agent):
 		self.reward += reward 
 		self.generation[self.chosenGenomeId].fittness = (0-self.reward) / self.step
 		print self.reward,self.step,self.reward / self.step
-		if(self.step <5999):
-			print self.lastObservation.doubleArray
-			import time
-			time.sleep(10)	
-
+	
 		for  g in self.generation:
 			if(g.fittness == 0):
 				return
@@ -206,7 +204,8 @@ class helicopter_agent(Agent):
  	 
 						
 
-	 
+def evolutionMutate():
+	return random.gauss(0,variance)	 
  
 def StateToActionNetwork(genome=None):
 	#initial a network [12,12,4] and initial weights are baseline policy versions
