@@ -15,7 +15,7 @@ from pybrain.datasets import SupervisedDataSet
 	"""
 
 population_size = 20
-mutation_rate = 0.1
+mutation_rate = 0.05
 decay_rate = 1
 variance = 0.01
 flag = "one"
