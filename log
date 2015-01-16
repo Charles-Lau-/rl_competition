@@ -1,8 +1,0 @@
-1.Now we have tried: naive_random, smooth_random, approximate kernel function and then choose action from approximated kernel function, the performace is  naive_random < smooth_random <= approximate kernel function, however, there is a hugh defect in approximate kernel function method, the linear relation is 12-dimension, which means it could effective predict only if when we have got at least more than 12 sample , but the most sample we can get is 9 or 10.
-
-
-2.go_back.py added and it really fails , no use
-
-3. Discretized Version: Sarsa, Q learning, Sarsa Lambda, Watkins. They perform almost the same, around 15 steps
-
-4. Sarsa with controllability is waited to be implemented... 
